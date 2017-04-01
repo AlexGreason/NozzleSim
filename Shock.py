@@ -48,5 +48,35 @@ class Shock:
     def getdownstreamvals(self):
         return [self.v + abs(self.turningangle), self.theta + self.turningangle, self.gamma]
 
+
+    def exists(self, x):
+        beforestart = x < self.start.x
+        afterend = False
+        try:
+            afterend = x > self.end.x
+        except AttributeError:
+            pass
+        return not beforestart and not afterend
+
+    @staticmethod
+    def calcregionparams(theta, v, gamma, shock):
+        newgamma = gamma  # update later if needed
+        newtheta = theta + shock.turningangle
+        newv = v + abs(shock.turningangle)
+        return [newtheta, newv, newgamma]
+
+    @staticmethod
+    def newshocks(shock1, shock2, x, y):
+        # this function takes two shockwaves that intersect at a point and determines the parameters of the shocks
+        # after interacting with each other
+        # the two shocks should have the same v, theta, and gamma because they share an upstream region, if
+        # they are the next two shocks to intersect
+        topregion = shock1.calcregionparams(shock1.theta, shock1.v, shock1.gamma, shock1)
+        bottomregion = shock2.calcregionparams(shock2.theta, shock2.v, shock2.gamma, shock2)
+        startpoint = Point(x, y)
+        topshock = Shock(startpoint, shock2.turningangle, topregion[2], topregion[1], topregion[0])
+        bottomshock = Shock(startpoint, shock1.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
+        return [topshock, bottomshock]
+
     def __str__(self):
         return "\nStart: " + str(self.start) + "\nAngle: " + str(self.propangle())

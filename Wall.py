@@ -17,3 +17,12 @@ class Wall:
 
     def propangle(self):
         return self.angle
+
+    def exists(self, x):
+        beforestart = x < self.start.x
+        afterend = False
+        try:
+            afterend = x > self.end.x
+        except AttributeError:
+            pass
+        return not beforestart and not afterend

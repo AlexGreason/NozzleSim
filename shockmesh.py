@@ -8,11 +8,10 @@ from Point import Point
 from Shock import Shock
 from Wall import Wall
 
-epsilon = 10**-10
+epsilon = 10 ** -10
 
 
 class Mesh:
-
     def __init__(self, gamma, initialmach, wallsegments, initialshocks, endexpansion, x=0):
         #  restrict to symmetric nozzles?
         #  Nah, it doesn't save a ton of effort and it would make duct simulation needlessly hard to retrofit
@@ -54,11 +53,12 @@ class Mesh:
 
     def simulate(self):
         event = self.firstevent(self.activeshocks, self.x)
-        while not event is None and self.x < 3:
+        while event is not None and self.x < 3:
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
 
-    def sortshocks(self, shocks, startx):
+    @staticmethod
+    def sortshocks(shocks, startx):
         xpositions = [x.start.x for x in shocks]
         slopes = [m.tan(m.radians(x.angle)) for x in shocks]
         ypositions = []
@@ -69,16 +69,6 @@ class Mesh:
         print(shocks)
         return [x[0] for x in shocks]
 
-    @staticmethod
-    def exists(shock, x):
-        beforestart = x < shock.start.x
-        afterend = False
-        try:
-            afterend = x > shock.end.x
-        except AttributeError:
-            pass
-        return not beforestart and not afterend
-
     def handled(self, shocks, object1, object2, x, y):
         intersection = Point(x, y)
         if isinstance(object1, Shock) and isinstance(object2, Shock):
@@ -86,17 +76,18 @@ class Mesh:
                 if x.start.equals(intersection) and isinstance(x, Shock):
                     return True
             return False
-        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (isinstance(object1, Wall) and isinstance(object2, Shock)) and x <= self.endexpansion:
+        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
+                    isinstance(object1, Wall) and isinstance(object2, Shock)) and x <= self.endexpansion:
             for x in shocks:
                 if x.start.equals(intersection) and isinstance(x, Shock):
                     return True
             return False
-        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (isinstance(object1, Wall) and isinstance(object2, Shock)) and x > self.endexpansion:
+        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
+                    isinstance(object1, Wall) and isinstance(object2, Shock)) and x > self.endexpansion:
             for x in shocks:
                 if x.start.equals(intersection) and isinstance(x, Wall):
                     return True
             return False
-
 
     def findpairs(self, shocks, startx):
         pairs = []
@@ -104,9 +95,11 @@ class Mesh:
         for i in range(len(shocks) - 1):
             interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start, shocks[i].angle,
                                                 shocks[i + 1].angle)
-            if not interpoint is None:
-                if interpoint.x >= startx and self.exists(shocks[i], interpoint.x - epsilon) and \
-                    self.exists(shocks[i + 1],interpoint.x - epsilon) and not self.handled(shocks, shocks[i], shocks[i + 1], interpoint.x, interpoint.y):
+            if interpoint is not None:
+                if interpoint.x >= startx and shocks[i].exists(interpoint.x - epsilon) and \
+                        shocks[i + 1].exists(interpoint.x - epsilon) and not self.handled(shocks, shocks[i],
+                                                                                          shocks[i + 1], interpoint.x,
+                                                                                          interpoint.y):
                     pairs.append((shocks[i], shocks[i + 1], interpoint))
         return pairs
 
@@ -117,7 +110,8 @@ class Mesh:
             return pairs[0]
         return None
 
-    def removeended(self, shocks, endx):
+    @staticmethod
+    def removeended(shocks, endx):
         notended = []
         for x in shocks:
             try:
@@ -131,30 +125,33 @@ class Mesh:
     def firstevent(self, shocks, startx):
         shocks = self.removeended(shocks, startx)
         intersection = self.firstintersection(shocks, startx)
-        if not intersection is None and not (isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)):
-            intersectionx = intersection[2].x
+        if intersection is not None:
+            if not (isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)):
+                intersectionx = intersection[2].x
+            else:
+                intersectionx = float("inf")
         else:
             intersectionx = float("inf")
         firstwallend = float("inf")
         wall = None
         nextwall = None
         for x in shocks:
-            if type(x) == Wall:
-                if not x.end is None:
-                    shock = None
-                    next = None
-                    for y in self.shocks:
-                        if y.start.equals(x.end) and isinstance(y, Shock):
-                            shock = y
-                        if y.start.equals(x.end) and isinstance(y, Wall):
-                            next = y
-                    if x.end.x < firstwallend and x.end.x >= startx and shock is None:
+            if type(x) == Wall and x.end is not None:
+                shock = None
+                next = None
+                for y in self.shocks:
+                    if y.start.equals(x.end) and isinstance(y, Shock):
+                        shock = y
+                    if y.start.equals(x.end) and isinstance(y, Wall):
+                        next = y
+                if firstwallend > x.end.x >= startx:
+                    if shock is None:
                         firstwallend = x.end.x
                         wall = x
                         nextwall = next
-        if firstwallend <= intersectionx and not nextwall is None:
+        if firstwallend <= intersectionx and nextwall is not None:
             return ["wall", [wall, nextwall, wall.end]]
-        if not intersection is None:
+        if intersection is not None:
             return ["intersection", intersection]
         return None
 
@@ -171,7 +168,7 @@ class Mesh:
 
     def handleintersection(self, object1, object2, x, y):
         if isinstance(object1, Shock) and isinstance(object2, Shock):
-            newshocks = self.newshocks(object1, object2, x, y)
+            newshocks = Shock.newshocks(object1, object2, x, y)
             self.shocks += newshocks
             self.activeshocks += newshocks
             self.activeshocks.remove(object1)
@@ -186,7 +183,8 @@ class Mesh:
                 shock = object1
             else:
                 shock = object2
-            newshock = self.reflectshock(shock, x, y)  # Method for handling expansion wave reflection, returns single new shock
+            newshock = self.reflectshock(shock, x,
+                                         y)  # Method for handling expansion wave reflection, returns single new shock
             self.activeshocks.remove(shock)
             shock.end = newshock.start
             self.activeshocks.append(newshock)
@@ -225,29 +223,9 @@ class Mesh:
 
     @staticmethod
     def reflectshock(shock, x, y):
-        bottomregion = Mesh.calcregionparams(shock.theta, shock.v, shock.gamma, shock)
+        bottomregion = Shock.calcregionparams(shock.theta, shock.v, shock.gamma, shock)
         bottomshock = Shock(Point(x, y), -shock.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
         return bottomshock
-
-    @staticmethod
-    def calcregionparams(theta, v, gamma, shock):
-        newgamma = gamma  # update later if needed
-        newtheta = theta + shock.turningangle
-        newv = v + abs(shock.turningangle)
-        return [newtheta, newv, newgamma]
-
-    @staticmethod
-    def newshocks(shock1, shock2, x, y):
-        # this function takes two shockwaves that intersect at a point and determines the parameters of the shocks
-        # after interacting with each other
-        # the two shocks should have the same v, theta, and gamma because they share an upstream region, if
-        # they are the next two shocks to intersect
-        topregion = Mesh.calcregionparams(shock1.theta, shock1.v, shock1.gamma, shock1)
-        bottomregion = Mesh.calcregionparams(shock2.theta, shock2.v, shock2.gamma, shock2)
-        startpoint = Point(x, y)
-        topshock = Shock(startpoint, shock2.turningangle, topregion[2], topregion[1], topregion[0])
-        bottomshock = Shock(startpoint, shock1.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
-        return [topshock, bottomshock]
 
     def drawallshocks(self, screen, displaybounds, screenx, screeny):
         for x in self.shocks:
@@ -256,11 +234,6 @@ class Mesh:
     def printallshocks(self):
         for x in self.shocks:
             print(x)
-
-
-
-
-
 
 
 def convertpoint(displaybounds, pointx, pointy, screenx, screeny):
