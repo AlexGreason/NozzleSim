@@ -1,5 +1,8 @@
+import math as m
+
 from Point import Point
 from Shock import Shock
+
 
 class Wall:
     def __init__(self, start, angle, end=None):
@@ -38,4 +41,19 @@ class Wall:
             nextsegment = cls(nextpoint, deltaangle * (i + 1))
             segments.append(nextsegment)
         return segments, start.x + deltax * (numsegments + 1)
+
+    def exists(self, x):
+        beforestart = x < self.start.x
+        afterend = False
+        try:
+            afterend = x > self.end.x
+        except AttributeError:
+            pass
+        return not beforestart and not afterend
+
+    def getyposition(self, xposition):
+        if(self.exists(xposition)):
+            slope = m.tan(m.radians(self.angle))
+            return (xposition - self.start.x) * slope + self.start.y
+        return -float("inf")
 

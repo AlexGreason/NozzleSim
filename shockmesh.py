@@ -1,6 +1,7 @@
 import math as m
 from copy import copy
 
+import numpy as np
 import pygame
 
 import helperfuncs as h
@@ -54,6 +55,7 @@ class Mesh:
         if self.remainingangle <= 0:
             lastcheck = True
         while event is not None and self.x < stop:
+            print(self.x)
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
             if lastcheck:
@@ -152,7 +154,7 @@ class Mesh:
                         nextwall = next
         if firstwallend <= intersectionx and nextwall is not None:
             return ["wall", [wall, nextwall, wall.end]]
-        if intersection is not None:
+        if intersection is not None and intersectionx != float("inf"):
             return ["intersection", intersection]
         return None
 
@@ -246,9 +248,10 @@ class Mesh:
         bottomshock = Shock(Point(x, y), -shock.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
         return bottomshock
 
-    def drawallshocks(self, screen, displaybounds, screenx, screeny):
+    def drawallshocks(self, screen, displaybounds, screenx, screeny, justwalls=False):
         for x in self.shocks:
-            drawshock(screen, displaybounds, x, screenx, screeny)
+            if type(x) == Wall or not justwalls:
+                drawshock(screen, displaybounds, x, screenx, screeny)
 
     def printallshocks(self):
         for x in self.shocks:
@@ -265,6 +268,19 @@ class Mesh:
                     miny = x.start.y
         diff = maxy - miny
         return diff**2
+
+
+    def getxytable(self, startx, numpoints, deltax):
+        table = []
+        for i in range(numpoints):
+            maxy = -float("inf")
+            for x in self.shocks:
+                if type(x) == Wall:
+                    ypos = x.getyposition(startx + deltax * i)
+                    if ypos > maxy:
+                        maxy = ypos
+            table.append((startx + deltax * i, maxy))
+        return table
 
 
 def convertpoint(displaybounds, pointx, pointy, screenx, screeny):
@@ -315,15 +331,17 @@ if __name__ == "__main__":
     x_dim, y_dim = 800, 800
     screen = pygame.display.set_mode((x_dim, y_dim))
     screen.fill((255, 255, 255))
-    displaybounds = [(0, -8), (16, 8)]
-    n = 21
-    theta = 40
-    topwalls, endx = Wall.createarc(Point(0, .5), .01, theta, n)
-    bottomwalls, endx = Wall.createarc(Point(0, -.5), .01, -theta, n)
+    displaybounds = [(0, -10), (20, 10)]
+    n = 45
+    theta = 34.45
+    topwalls, endx = Wall.createarc(Point(0, .5), .007, theta, n)
+    bottomwalls, endx = Wall.createarc(Point(0, -.5), .007, -theta, n)
     print(endx)
-    mesh = Mesh(1.25, 1, [], topwalls + bottomwalls, 2*endx, 1)
+    mesh = Mesh(1.25, 1, [], topwalls + bottomwalls, endx, 1)
     mesh.simulate()
+    table = mesh.getxytable(0, 1000, .011)
     mesh.drawallshocks(screen, displaybounds, x_dim, y_dim)
+    np.savetxt("table.csv", table, delimiter = ",")
     print(mesh.calcarearatio())
     running = True
     while running:
