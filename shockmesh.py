@@ -1,8 +1,9 @@
-import numpy as np
 import math as m
-import helperfuncs as h
-import pygame
 from copy import copy
+
+import pygame
+
+import helperfuncs as h
 
 
 class Mesh:
@@ -68,11 +69,10 @@ class Mesh:
 
     def findpairs(self, shocks, startx):
         pairs = []
-        for i in range(len(shocks)):
+        for i in range(len(shocks) - 1):
             interpoint = Shock.findintersection(shocks[i].start, shocks[i+1].start, shocks[i].angle, shocks[i+1].angle)
             if interpoint.x > startx and self.exists(shocks[i], interpoint.x)and self.exists(shocks[i+1], interpoint.x):
                 pairs.append((shocks[i], shocks[i+1], interpoint))
-        print(pairs)
         return pairs
 
     def firstintersection(self, shocks, startx):
@@ -98,6 +98,10 @@ class Mesh:
             self.activeshocks += newshocks
             self.activeshocks.remove(object1)
             self.activeshocks.remove(object2)
+            intersection = Point(x, y)
+            object1.end = intersection
+            object2.end = intersection
+            self.x = x
         if ((isinstance(object1, Shock) and isinstance(object2, Wall)) or (
             isinstance(object1, Wall) and isinstance(object2, Shock))) and x < self.endexpansion:
             return ["reflect", None] # Method for handling expansion wave reflection, returns single new shock
@@ -149,7 +153,13 @@ class Mesh:
         bottomshock = Shock(startpoint, shock1.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
         return [topshock, bottomshock]
 
+    def drawallshocks(self, screen, displaybounds, screenx, screeny):
+        for x in self.shocks:
+            drawshock(screen, displaybounds, x, screenx, screeny)
 
+    def printallshocks(self):
+        for x in self.shocks:
+            print(x)
 
 
 class Point:
@@ -180,7 +190,10 @@ class Shock:
 
 
     def __init__(self, start, turningangle, gamma, upstreamv, upstreamtheta, end=None):
-        self.start = start
+        if type(start) == Point:
+            self.start = start
+        elif type(start) == tuple or type(start) == list:
+            self.start = Point(start[0], start[1])
         self.turningangle = turningangle
         self.v = upstreamv
         self.theta = upstreamtheta
@@ -267,30 +280,20 @@ def drawshock(screen, displaybounds, shock, screenx, screeny):
 if __name__ == "__main__":
     pygame.init()
     x_dim, y_dim = 600, 600
-    displaybounds = [(0, -2), (4, 2)]
-    white = 255, 255, 255
-    black = 0, 0, 0
     screen = pygame.display.set_mode((x_dim, y_dim))
     screen.fill((255, 255, 255))
-    pygame.display.update()
-    starta = Point(0, -11)
-    startb = Point(0, -1)
-    shocka = Shock(starta, 10, 1.25, 0, 0)
-    shockb = Shock(startb, -10, 1.25, 0, 0)
-    anglea = shocka.propangle()
-    angleb = shockb.propangle()
-    print(anglea)
-    print(angleb)
-    intersection = Shock.findintersection(starta, startb, anglea, angleb)
-    shocka.end = intersection
-    shockb.end = intersection
-    print(intersection)
+    displaybounds = [(0, -2), (4, 2)]
+    shocka = Shock((0, 1), 10, 1.25, 0, 0)
+    shockb = Shock((0, -1), -10, 1.25, 0, 0)
     mesh = Mesh(1.25, 1, [], [shocka, shockb], 2)
-    newshocks = mesh.handleintersection(shocka, shockb, intersection.x, intersection.y)
-    print(mesh.activeshocks[0], mesh.activeshocks[1], len(mesh.activeshocks))
-    drawshock(screen, displaybounds, shocka, 600, 600)
-    drawshock(screen, displaybounds, shockb, 600, 600)
-    drawshock(screen, displaybounds, mesh.activeshocks[0], 600, 600)
-    drawshock(screen, displaybounds, mesh.activeshocks[1], 600, 600)
-    while True:
-        pygame.event.get()
+    shockc, shockd, intersection = mesh.firstintersection(mesh.activeshocks, mesh.x)
+    mesh.handleintersection(shockc, shockd, intersection.x, intersection.y)
+    mesh.drawallshocks(screen, displaybounds, 600, 600)
+    mesh.printallshocks()
+    running = True
+    while running:
+        events = pygame.event.get()
+        for e in events:
+            if e.type == pygame.QUIT:
+                running = False
+                pygame.display.quit()
