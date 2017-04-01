@@ -1,4 +1,5 @@
 from Point import Point
+from Shock import Shock
 
 class Wall:
     def __init__(self, start, angle, end=None):
@@ -26,3 +27,15 @@ class Wall:
         except AttributeError:
             pass
         return not beforestart and not afterend
+
+    @classmethod
+    def createarc(cls, start, deltax, totalangle, numsegments):
+        deltaangle = totalangle/numsegments
+        segments = [cls(start, 0)]
+        for i in range(numsegments):
+            nextpoint = Shock.findintersection(segments[i].start, Point(start.x + deltax * (i+1), start.y), deltaangle * i, 89.9)
+            segments[i].end = nextpoint
+            nextsegment = cls(nextpoint, deltaangle * (i + 1))
+            segments.append(nextsegment)
+        return segments, start.x + deltax * (numsegments + 1)
+

@@ -12,11 +12,7 @@ epsilon = 10 ** -10
 
 
 class Mesh:
-    def __init__(self, gamma, initialmach, wallsegments, initialshocks, endexpansion, x=0):
-        #  restrict to symmetric nozzles?
-        #  Nah, it doesn't save a ton of effort and it would make duct simulation needlessly hard to retrofit
-        #  so first, figure out how to simulate interacting shocks in free space, then it should be a fairly
-        #  minor modification to add walls
+    def __init__(self, gamma, initialmach, wallsegments, initialshocks, endexpansion, remainingangle, x=0):
         self.gamma = gamma
         # currently constant, but wouldn't be hard to make a function of mach,
         # and if I can get temperature as a function of mach I can do that too
@@ -27,13 +23,14 @@ class Mesh:
         # and all wall segments in expansion section and as they are created
         self.activeshocks = copy(initialshocks)
         # activeshocks contains all shocks that still exist
-        # and all wall segments in expansion section and as they are created
+        # and all non-ended wall segments in expansion section and as they are created
         # it checks to see, before tagging something as a pair, whether the intersection occurs in a location
         # where that wall actually exists, so shocks should never interact with nonexistent walls
         # and I can just dump the whole expansion section in there right at the start
         # then make up the compression section as I go.
         self.x = x
         self.endexpansion = endexpansion
+        self.remainingangle = remainingangle
         # x coordinate at which the expansion section ends. Controls whether shocks reflect off walls or cause them to
         # bend inwards
 
@@ -42,8 +39,8 @@ class Mesh:
     # during expansion section) alright, so what I do is, I have all the wall segments in by default, but I don't
     # include them when sorting, but I do include them when finding the first intersection,
     # by looking for if the "endpoint" field is defined and including that in the list of x locations if so. that'll
-    # let me jump to the start of a new predefined wall section if it's the next event, and then I can spawn a region
-    # and expansion wave appropriately
+    # let me jump to the start of a new predefined wall section if it's the next event, and then I can spawn an
+    # expansion wave appropriately
     # 2. start at x value 0
     # 3. sort shocks/walls by current y value
     # 4. find pairs of neighboring lines where there's a type 1 on top and a type 2 on bottom, these will intersect
@@ -51,11 +48,16 @@ class Mesh:
     # 6. go to that x value, spawn/destroy elements as needed to deal with that intersection
     # 7. go to step 3
 
-    def simulate(self):
+    def simulate(self, stop = float("inf")):
         event = self.firstevent(self.activeshocks, self.x)
-        while event is not None and self.x < 3:
+        lastcheck = False
+        if self.remainingangle <= 0:
+            lastcheck = True
+        while event is not None and self.x < stop:
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
+            if lastcheck:
+                return
 
     @staticmethod
     def sortshocks(shocks, startx):
@@ -66,7 +68,6 @@ class Mesh:
             ypositions += [(startx + epsilon - xpositions[i]) * slopes[i] + shocks[i].start.y]
         shocks = list(zip(shocks, ypositions))
         shocks.sort(key=lambda x: x[1], reverse=True)
-        print(shocks)
         return [x[0] for x in shocks]
 
     def handled(self, shocks, object1, object2, x, y):
@@ -183,8 +184,7 @@ class Mesh:
                 shock = object1
             else:
                 shock = object2
-            newshock = self.reflectshock(shock, x,
-                                         y)  # Method for handling expansion wave reflection, returns single new shock
+            newshock = self.reflectshock(shock, x, y)
             self.activeshocks.remove(shock)
             shock.end = newshock.start
             self.activeshocks.append(newshock)
@@ -192,11 +192,30 @@ class Mesh:
             self.x = x
         if ((isinstance(object1, Shock) and isinstance(object2, Wall)) or (
                     isinstance(object1, Wall) and isinstance(object2, Shock))) and x > self.endexpansion:
-            return ["absorb", None]  # Method for handling compression section generation, returns new wall segment
+            if isinstance(object1, Shock):
+                shock = object1
+                wall = object2
+            else:
+                shock = object2
+                wall = object1
+            newwall = self.contract(wall, shock, x, y)
+            self.activeshocks.remove(wall)
+            self.activeshocks.remove(shock)
+            self.shocks.append(newwall)
+            self.activeshocks.append(newwall)
+            self.x = x
         if isinstance(object1, Wall) and isinstance(object2, Wall):
             raise TypeError('Both objects are walls. Your air got stuck.')
             # Actually, this case depends on whether or not I'm using handleintersection to manage the creation of
             # new shocks at corners in the expansion section or if I'm handling that separately.
+
+    def contract(self, wall, shock, x, y):
+        point = Point(x, y)
+        wall.end = point
+        shock.end = point
+        newwall = Wall(point, wall.angle + shock.turningangle)
+        self.remainingangle = abs(wall.angle + shock.turningangle)
+        return newwall
 
     def handleevent(self, event):
         if event[0] == "wall":
@@ -214,7 +233,7 @@ class Mesh:
         else:
             for x in self.shocks:
                 if x.start == start and x != wallseg:
-                    return x.getdownsrteamvals()
+                    return x.getdownstreamvals()
 
     def genwallshock(self, wall1, wall2):
         params = self.getupstreamvalues(wall1)
@@ -235,6 +254,18 @@ class Mesh:
         for x in self.shocks:
             print(x)
 
+    def calcarearatio(self):
+        maxy = -float("inf")
+        miny = float("inf")
+        for x in self.shocks:
+            if isinstance(x, Wall):
+                if x.start.y > maxy:
+                    maxy = x.start.y
+                if x.start.y < miny:
+                    miny = x.start.y
+        diff = maxy - miny
+        return diff**2
+
 
 def convertpoint(displaybounds, pointx, pointy, screenx, screeny):
     # note: in pygame coordinates, (0,0) is the top left. In nozzle coordinates, (minx, miny) is bottom left
@@ -253,17 +284,21 @@ def drawline(screen, displaybounds, start, angle, endx, screenx, screeny):
     endx = min(displaybounds[1][0], endx)
     slope = m.tan(m.radians(angle))
     deltax = endx - start.x
+    if -32.70 < deltax < -32.68:
+        pass
     endy = start.y + deltax * slope
+    end = None
     if endy > displaybounds[1][1]:
         end = Shock.findintersection(Point(0, displaybounds[1][1]), start, 0, angle)
     elif endy < displaybounds[0][1]:
         end = Shock.findintersection(Point(0, displaybounds[0][1]), start, 0, angle)
-    else:
+    if end is None:
         end = Point(endx, endy)
     screenstart = convertpoint(displaybounds, start.x, start.y, screenx, screeny)
     screenend = convertpoint(displaybounds, end.x, end.y, screenx, screeny)
-    pygame.draw.line(screen, (0, 0, 0), screenstart, screenend)
-    pygame.display.update()
+    if(0 < screenstart[0] < screenx and 0 < screenstart[1] < screeny):
+        pygame.draw.line(screen, (0, 0, 0), screenstart, screenend)
+        pygame.display.update()
 
 
 def drawshock(screen, displaybounds, shock, screenx, screeny):
@@ -277,18 +312,19 @@ def drawshock(screen, displaybounds, shock, screenx, screeny):
 
 if __name__ == "__main__":
     pygame.init()
-    x_dim, y_dim = 600, 600
+    x_dim, y_dim = 800, 800
     screen = pygame.display.set_mode((x_dim, y_dim))
     screen.fill((255, 255, 255))
-    displaybounds = [(0, -4), (8, 4)]
-    walla = Wall((0, 1), 0, (1, 1))
-    wallb = Wall((1, 1), 10)
-    wallc = Wall((0, -1), 0, (1, -1))
-    walld = Wall((1, -1), -10)
-    mesh = Mesh(1.25, 1, [], [walla, wallb, wallc, walld], 100)
+    displaybounds = [(0, -8), (16, 8)]
+    n = 21
+    theta = 40
+    topwalls, endx = Wall.createarc(Point(0, .5), .01, theta, n)
+    bottomwalls, endx = Wall.createarc(Point(0, -.5), .01, -theta, n)
+    print(endx)
+    mesh = Mesh(1.25, 1, [], topwalls + bottomwalls, 2*endx, 1)
     mesh.simulate()
-    mesh.drawallshocks(screen, displaybounds, 600, 600)
-    mesh.printallshocks()
+    mesh.drawallshocks(screen, displaybounds, x_dim, y_dim)
+    print(mesh.calcarearatio())
     running = True
     while running:
         events = pygame.event.get()

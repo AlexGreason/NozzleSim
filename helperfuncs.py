@@ -1,4 +1,3 @@
-import numpy as np
 import math as m
 
 
@@ -93,7 +92,7 @@ def shockprop(gamma, v, theta, turningangle):
 
 
 if __name__ == "__main__":
-    print(shockprop(1.25, 3.75, 0, 3.75))
+    print(calcv(1.25, 1, 5))
     #  should differ by 8.1 degrees, because one is measuring from the x axis and one is measuring from the (post-turn) wall
     #  return the same value
     #  probably why I had that problem
