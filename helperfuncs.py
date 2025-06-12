@@ -2,7 +2,11 @@ import math as m
 from functools import lru_cache
 
 
-sign = lambda x: m.copysign(1, x)
+
+
+def sign(x):
+    """Return the sign of *x* as ``1`` or ``-1``."""
+    return m.copysign(1, x)
 
 def machangle(mach):
     return m.asin(1/mach)
@@ -36,7 +40,10 @@ def binarysearch(lowerbound, upperbound, target, steps, func):
 def calcmach(gamma, mach1, angle, steps=30):
     if angle == 0:
         return 1
-    f = lambda mach2: calcv(gamma, mach1, mach2)
+
+    def f(mach2):
+        return calcv(gamma, mach1, mach2)
+
     return binarysearch(1, 100, angle, steps, f)
 
 
@@ -82,7 +89,10 @@ def calcarearatio(gamma, mach):
 
 @lru_cache(maxsize=None)
 def calcmachfromarearatio(gamma, ratio, steps=20):
-    f = lambda mach: calcarearatio(gamma, mach)
+
+    def f(mach):
+        return calcarearatio(gamma, mach)
+
     return binarysearch(1.1, 1000, ratio, steps, f)
 
 @lru_cache(maxsize=None)

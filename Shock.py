@@ -26,8 +26,13 @@ class Shock:
         slope2 = m.tan(m.radians(angle2))
         deltaslope = slope1 - slope2
         startx = max(start1.x, start2.x)
-        line1 = lambda x: (x - start1.x) * slope1 + start1.y
-        line2 = lambda x: (x - start2.x) * slope2 + start2.y
+
+        def line1(x):
+            return (x - start1.x) * slope1 + start1.y
+
+        def line2(x):
+            return (x - start2.x) * slope2 + start2.y
+
         ydif = line1(startx) - line2(startx)
         if deltaslope != 0:
             deltax = ydif / -deltaslope
