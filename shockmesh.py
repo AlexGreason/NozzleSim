@@ -96,13 +96,19 @@ class Mesh:
         pairs = []
         shocks = self.sortshocks(shocks, startx)
         for i in range(len(shocks) - 1):
-            interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start, shocks[i].angle,
-                                                shocks[i + 1].angle)
+            interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start,
+                                                shocks[i].angle, shocks[i + 1].angle)
             if interpoint is not None:
-                if interpoint.x >= startx and shocks[i].exists(interpoint.x - epsilon) and \
-                        shocks[i + 1].exists(interpoint.x - epsilon) and not self.handled(shocks, shocks[i],
-                                                                                          shocks[i + 1], interpoint.x,
-                                                                                          interpoint.y):
+                checkx1 = interpoint.x - epsilon
+                checkx2 = checkx1
+                if checkx1 < shocks[i].start.x:
+                    checkx1 = interpoint.x
+                if checkx2 < shocks[i + 1].start.x:
+                    checkx2 = interpoint.x
+                if interpoint.x >= startx and shocks[i].exists(checkx1) and \
+                        shocks[i + 1].exists(checkx2) and not self.handled(shocks, shocks[i],
+                                                                         shocks[i + 1], interpoint.x,
+                                                                         interpoint.y):
                     pairs.append((shocks[i], shocks[i + 1], interpoint))
         return pairs
 
