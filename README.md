@@ -8,10 +8,10 @@ test suite.  Run ``pytest`` to execute them.
 
 ## Running Tests
 
-Install development dependencies and run the test suite with coverage:
+Install required dependencies and run the test suite with coverage:
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 pytest
 ```
 

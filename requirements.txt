@@ -1,2 +1,5 @@
 numpy
 pygame
+pytest
+pytest-cov
+black
