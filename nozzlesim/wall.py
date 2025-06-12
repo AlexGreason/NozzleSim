@@ -1,29 +1,40 @@
-import math as m
+"""Representation of straight wall segments used in nozzle geometry."""
+
+from __future__ import annotations
+
+import math
+from typing import Sequence, Optional, Union
 
 from .point import Point
 from .shock import Shock
 
 
 class Wall:
-    def __init__(self, start, angle, end=None):
-        if type(start) == Point:
-            self.start = start
-        elif type(start) == tuple or type(start) == list:
-            self.start = Point(start[0], start[1])
-        if end is not None:
-            if type(end) == Point:
-                self.end = end
-            elif type(end) == tuple or type(end) == list:
-                self.end = Point(end[0], end[1])
-        else:
-            self.end = end
+    """A straight wall segment defined by a start point and angle."""
+
+    def __init__(
+        self,
+        start: Union[Point, Sequence[float]],
+        angle: float,
+        end: Optional[Point] = None,
+    ) -> None:
+        self.start = start if isinstance(start, Point) else Point(start[0], start[1])
+        if end is not None and not isinstance(end, Point):
+            end = Point(end[0], end[1])
+        self.end = end
         self.angle = angle
 
-    def propangle(self):
+    def propangle(self) -> float:
+        """Return the wall angle."""
+
         return self.angle
 
     @classmethod
-    def createarc(cls, start, deltax, totalangle, numsegments):
+    def createarc(
+        cls, start: Point, deltax: float, totalangle: float, numsegments: int
+    ) -> tuple[list["Wall"], float]:
+        """Approximate an arc with ``numsegments`` straight segments."""
+
         deltaangle = totalangle / numsegments
         segments = [cls(start, 0)]
         for i in range(numsegments):
@@ -38,17 +49,19 @@ class Wall:
             segments.append(nextsegment)
         return segments, start.x + deltax * (numsegments + 1)
 
-    def exists(self, x):
+    def exists(self, x: float) -> bool:
+        """Return ``True`` if ``x`` lies between ``start`` and ``end`` (if defined)."""
+
         beforestart = x < self.start.x
         afterend = False
-        try:
+        if self.end is not None:
             afterend = x > self.end.x
-        except AttributeError:
-            pass
         return not beforestart and not afterend
 
-    def getyposition(self, xposition):
+    def getyposition(self, xposition: float) -> float:
+        """Return the y coordinate on the wall at ``xposition`` or ``-inf``."""
+
         if self.exists(xposition):
-            slope = m.tan(m.radians(self.angle))
+            slope = math.tan(math.radians(self.angle))
             return (xposition - self.start.x) * slope + self.start.y
         return -float("inf")
