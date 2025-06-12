@@ -1,84 +1,102 @@
-import math as m
+"""Shock/expansion wave utilities."""
+
+from __future__ import annotations
+
+import math
+from typing import Iterable, Optional, Sequence, Union
 
 from . import helperfuncs as h
 from .point import Point
 
 
 class Shock:
-    def __init__(self, start, turningangle, gamma, upstreamv, upstreamtheta, end=None):
-        if type(start) == Point:
-            self.start = start
-        elif type(start) == tuple or type(start) == list:
-            self.start = Point(start[0], start[1])
+    """Representation of a single characteristic line."""
+
+    def __init__(
+        self,
+        start: Union[Point, Sequence[float]],
+        turningangle: float,
+        gamma: float,
+        upstreamv: float,
+        upstreamtheta: float,
+        end: Optional[Point] = None,
+    ) -> None:
+        self.start = start if isinstance(start, Point) else Point(start[0], start[1])
         self.turningangle = turningangle
         self.v = upstreamv
         self.theta = upstreamtheta
         self.gamma = gamma
-        self.angle = self.propangle()
         self.end = end
+        self.angle = self.propangle()
 
-    def propangle(self):
+    def propangle(self) -> float:
+        """Return propagation angle of this characteristic."""
+
         return h.shockprop(self.gamma, self.v, self.theta, self.turningangle)
 
     @staticmethod
-    def findintersection(start1, start2, angle1, angle2):
-        slope1 = m.tan(m.radians(angle1))
-        slope2 = m.tan(m.radians(angle2))
-        deltaslope = slope1 - slope2
-        startx = max(start1.x, start2.x)
+    def findintersection(
+        start1: Point, start2: Point, angle1: float, angle2: float
+    ) -> Optional[Point]:
+        """Return the intersection point of two rays defined by ``start*`` and ``angle*``."""
 
-        def line1(x):
-            return (x - start1.x) * slope1 + start1.y
-
-        def line2(x):
-            return (x - start2.x) * slope2 + start2.y
-
-        ydif = line1(startx) - line2(startx)
-        if deltaslope != 0:
-            deltax = ydif / -deltaslope
-        else:
+        slope1 = math.tan(math.radians(angle1))
+        slope2 = math.tan(math.radians(angle2))
+        if math.isclose(slope1, slope2):
             return None
-        intersectionx = deltax + startx
-        intersectiony = line1(intersectionx) / 2 + line2(intersectionx) / 2
-        return Point(intersectionx, intersectiony)
+        b1 = start1.y - slope1 * start1.x
+        b2 = start2.y - slope2 * start2.x
+        x = (b2 - b1) / (slope1 - slope2)
+        y = slope1 * x + b1
+        return Point(x, y)
 
-    def findshockintersection(self, shock2):
+    def findshockintersection(self, shock2: "Shock") -> Optional[Point]:
+        """Intersect this shock with ``shock2``."""
+
         angle1 = self.propangle()
         angle2 = shock2.propangle()
         return self.findintersection(self.start, shock2.start, angle1, angle2)
 
-    def getupstreamvals(self):
+    def getupstreamvals(self) -> list[float]:
+        """Return ``[v, theta, gamma]`` upstream of the wave."""
+
         return [self.v, self.theta, self.gamma]
 
-    def getdownstreamvals(self):
+    def getdownstreamvals(self) -> list[float]:
+        """Return ``[v, theta, gamma]`` downstream of the wave."""
+
         return [
             self.v + abs(self.turningangle),
             self.theta + self.turningangle,
             self.gamma,
         ]
 
-    def exists(self, x):
+    def exists(self, x: float) -> bool:
+        """Return ``True`` if ``x`` lies between ``start`` and ``end`` (if defined)."""
+
         beforestart = x < self.start.x
         afterend = False
-        try:
+        if self.end is not None:
             afterend = x > self.end.x
-        except AttributeError:
-            pass
         return not beforestart and not afterend
 
     @staticmethod
-    def calcregionparams(theta, v, gamma, shock):
-        newgamma = gamma  # update later if needed
+    def calcregionparams(
+        theta: float, v: float, gamma: float, shock: "Shock"
+    ) -> list[float]:
+        """Return flow parameters in the region downstream of ``shock``."""
+
+        newgamma = gamma
         newtheta = theta + shock.turningangle
         newv = v + abs(shock.turningangle)
         return [newtheta, newv, newgamma]
 
     @staticmethod
-    def newshocks(shock1, shock2, x, y):
-        # this function takes two shockwaves that intersect at a point and determines the parameters of the shocks
-        # after interacting with each other
-        # the two shocks should have the same v, theta, and gamma because they share an upstream region, if
-        # they are the next two shocks to intersect
+    def newshocks(
+        shock1: "Shock", shock2: "Shock", x: float, y: float
+    ) -> list["Shock"]:
+        """Return new shocks generated when ``shock1`` intersects ``shock2`` at ``(x, y)``."""
+
         topregion = shock1.calcregionparams(
             shock1.theta, shock1.v, shock1.gamma, shock1
         )
@@ -98,5 +116,5 @@ class Shock:
         )
         return [topshock, bottomshock]
 
-    def __str__(self):
-        return "\nStart: " + str(self.start) + "\nAngle: " + str(self.propangle())
+    def __str__(self) -> str:  # pragma: no cover - simple display
+        return f"\nStart: {self.start}\nAngle: {self.propangle()}"

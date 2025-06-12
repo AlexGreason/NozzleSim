@@ -1,16 +1,25 @@
-import math as m
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
 
 
+@dataclass
 class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    """Simple container for a two dimensional point."""
 
-    def distance(self, point2):
-        return m.sqrt((self.x - point2.x) ** 2 + (self.y - point2.y) ** 2)
+    x: float
+    y: float
 
-    def equals(self, point2):
+    def distance(self, point2: "Point") -> float:
+        """Return the Euclidean distance to ``point2``."""
+
+        return math.hypot(self.x - point2.x, self.y - point2.y)
+
+    def equals(self, point2: "Point") -> bool:
+        """Return ``True`` if ``point2`` has identical coordinates."""
+
         return self.x == point2.x and self.y == point2.y
 
-    def __str__(self):
-        return "(" + str(self.x) + ", " + str(self.y) + ")"
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"({self.x}, {self.y})"
