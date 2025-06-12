@@ -85,6 +85,7 @@ class Mesh:
         while event is not None and self.x < stop:
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
+            lastcheck = self.remainingangle <= 0
             if lastcheck:
                 return
 
