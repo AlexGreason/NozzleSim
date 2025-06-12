@@ -4,16 +4,25 @@ from copy import copy
 import numpy as np
 import pygame
 
-import helperfuncs as h
-from Point import Point
-from Shock import Shock
-from Wall import Wall
+from . import helperfuncs as h
+from .point import Point
+from .shock import Shock
+from .wall import Wall
 
-epsilon = 10 ** -10
+epsilon = 10**-10
 
 
 class Mesh:
-    def __init__(self, gamma, initialmach, wallsegments, initialshocks, endexpansion, remainingangle, x=0):
+    def __init__(
+        self,
+        gamma,
+        initialmach,
+        wallsegments,
+        initialshocks,
+        endexpansion,
+        remainingangle,
+        x=0,
+    ):
         self.gamma = gamma
         # currently constant, but wouldn't be hard to make a function of mach,
         # and if I can get temperature as a function of mach I can do that too
@@ -49,7 +58,7 @@ class Mesh:
     # 6. go to that x value, spawn/destroy elements as needed to deal with that intersection
     # 7. go to step 3
 
-    def simulate(self, stop = float("inf")):
+    def simulate(self, stop=float("inf")):
         event = self.firstevent(self.activeshocks, self.x)
         lastcheck = False
         if self.remainingangle <= 0:
@@ -66,7 +75,9 @@ class Mesh:
         slopes = [m.tan(m.radians(x.angle)) for x in shocks]
         ypositions = []
         for i in range(len(shocks)):
-            ypositions += [(startx + epsilon - xpositions[i]) * slopes[i] + shocks[i].start.y]
+            ypositions += [
+                (startx + epsilon - xpositions[i]) * slopes[i] + shocks[i].start.y
+            ]
         shocks = list(zip(shocks, ypositions))
         shocks.sort(key=lambda x: x[1], reverse=True)
         return [x[0] for x in shocks]
@@ -77,14 +88,20 @@ class Mesh:
                 if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
-        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
-                    isinstance(object1, Wall) and isinstance(object2, Shock)) and x <= self.endexpansion:
+        if (
+            (isinstance(object1, Shock) and isinstance(object2, Wall))
+            or (isinstance(object1, Wall) and isinstance(object2, Shock))
+            and x <= self.endexpansion
+        ):
             for seg in shocks:
                 if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
-        if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
-                    isinstance(object1, Wall) and isinstance(object2, Shock)) and x > self.endexpansion:
+        if (
+            (isinstance(object1, Shock) and isinstance(object2, Wall))
+            or (isinstance(object1, Wall) and isinstance(object2, Shock))
+            and x > self.endexpansion
+        ):
             for seg in shocks:
                 if seg.start.x == x and seg.start.y == y and isinstance(seg, Wall):
                     return True
@@ -94,8 +111,12 @@ class Mesh:
         pairs = []
         shocks = self.sortshocks(shocks, startx)
         for i in range(len(shocks) - 1):
-            interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start,
-                                                shocks[i].angle, shocks[i + 1].angle)
+            interpoint = Shock.findintersection(
+                shocks[i].start,
+                shocks[i + 1].start,
+                shocks[i].angle,
+                shocks[i + 1].angle,
+            )
             if interpoint is not None:
                 checkx1 = interpoint.x - epsilon
                 checkx2 = checkx1
@@ -103,10 +124,14 @@ class Mesh:
                     checkx1 = interpoint.x
                 if checkx2 < shocks[i + 1].start.x:
                     checkx2 = interpoint.x
-                if interpoint.x >= startx and shocks[i].exists(checkx1) and \
-                        shocks[i + 1].exists(checkx2) and not self.handled(shocks, shocks[i],
-                                                                         shocks[i + 1], interpoint.x,
-                                                                         interpoint.y):
+                if (
+                    interpoint.x >= startx
+                    and shocks[i].exists(checkx1)
+                    and shocks[i + 1].exists(checkx2)
+                    and not self.handled(
+                        shocks, shocks[i], shocks[i + 1], interpoint.x, interpoint.y
+                    )
+                ):
                     pairs.append((shocks[i], shocks[i + 1], interpoint))
         return pairs
 
@@ -133,7 +158,9 @@ class Mesh:
         shocks = self.removeended(shocks, startx)
         intersection = self.firstintersection(shocks, startx)
         if intersection is not None:
-            if not (isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)):
+            if not (
+                isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)
+            ):
                 intersectionx = intersection[2].x
             else:
                 intersectionx = float("inf")
@@ -184,8 +211,10 @@ class Mesh:
             object1.end = intersection
             object2.end = intersection
             self.x = x
-        if ((isinstance(object1, Shock) and isinstance(object2, Wall)) or (
-                    isinstance(object1, Wall) and isinstance(object2, Shock))) and x < self.endexpansion:
+        if (
+            (isinstance(object1, Shock) and isinstance(object2, Wall))
+            or (isinstance(object1, Wall) and isinstance(object2, Shock))
+        ) and x < self.endexpansion:
             if isinstance(object1, Shock):
                 shock = object1
             else:
@@ -196,8 +225,10 @@ class Mesh:
             self.activeshocks.append(newshock)
             self.shocks.append(newshock)
             self.x = x
-        if ((isinstance(object1, Shock) and isinstance(object2, Wall)) or (
-                    isinstance(object1, Wall) and isinstance(object2, Shock))) and x > self.endexpansion:
+        if (
+            (isinstance(object1, Shock) and isinstance(object2, Wall))
+            or (isinstance(object1, Wall) and isinstance(object2, Shock))
+        ) and x > self.endexpansion:
             if isinstance(object1, Shock):
                 shock = object1
                 wall = object2
@@ -211,7 +242,7 @@ class Mesh:
             self.activeshocks.append(newwall)
             self.x = x
         if isinstance(object1, Wall) and isinstance(object2, Wall):
-            raise TypeError('Both objects are walls. Your air got stuck.')
+            raise TypeError("Both objects are walls. Your air got stuck.")
             # Actually, this case depends on whether or not I'm using handleintersection to manage the creation of
             # new shocks at corners in the expansion section or if I'm handling that separately.
 
@@ -230,7 +261,9 @@ class Mesh:
             self.shocks.append(newshock)
             self.x = event[1][2].x
         if event[0] == "intersection":
-            self.handleintersection(event[1][0], event[1][1], event[1][2].x, event[1][2].y)
+            self.handleintersection(
+                event[1][0], event[1][1], event[1][2].x, event[1][2].y
+            )
 
     def getupstreamvalues(self, wallseg):
         start = wallseg.start
@@ -249,7 +282,13 @@ class Mesh:
     @staticmethod
     def reflectshock(shock, x, y):
         bottomregion = Shock.calcregionparams(shock.theta, shock.v, shock.gamma, shock)
-        bottomshock = Shock(Point(x, y), -shock.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
+        bottomshock = Shock(
+            Point(x, y),
+            -shock.turningangle,
+            bottomregion[2],
+            bottomregion[1],
+            bottomregion[0],
+        )
         return bottomshock
 
     def drawallshocks(self, screen, displaybounds, screenx, screeny, justwalls=False):
@@ -273,7 +312,6 @@ class Mesh:
         diff = maxy - miny
         return diff**2
 
-
     def getxytable(self, startx, numpoints, deltax):
         table = []
         for i in range(numpoints):
@@ -296,7 +334,9 @@ def convertpoint(displaybounds, pointx, pointy, screenx, screeny):
     deltay = pointy - displaybounds[0][1]
     yrange = displaybounds[1][1] - displaybounds[0][1]
     propdiffy = deltay / yrange
-    newy = screeny - propdiffy * screeny  # to adjust for difference in coordinate systems
+    newy = (
+        screeny - propdiffy * screeny
+    )  # to adjust for difference in coordinate systems
     return newx, newy
 
 
@@ -316,7 +356,7 @@ def drawline(screen, displaybounds, start, angle, endx, screenx, screeny):
         end = Point(endx, endy)
     screenstart = convertpoint(displaybounds, start.x, start.y, screenx, screeny)
     screenend = convertpoint(displaybounds, end.x, end.y, screenx, screeny)
-    if(0 < screenstart[0] < screenx and 0 < screenstart[1] < screeny):
+    if 0 < screenstart[0] < screenx and 0 < screenstart[1] < screeny:
         pygame.draw.line(screen, (0, 0, 0), screenstart, screenend)
         pygame.display.update()
 
@@ -338,14 +378,14 @@ if __name__ == "__main__":
     displaybounds = [(0, -10), (20, 10)]
     n = 45
     theta = 34.45
-    topwalls, endx = Wall.createarc(Point(0, .5), .007, theta, n)
-    bottomwalls, endx = Wall.createarc(Point(0, -.5), .007, -theta, n)
+    topwalls, endx = Wall.createarc(Point(0, 0.5), 0.007, theta, n)
+    bottomwalls, endx = Wall.createarc(Point(0, -0.5), 0.007, -theta, n)
     print(endx)
     mesh = Mesh(1.25, 1, [], topwalls + bottomwalls, endx, 1)
     mesh.simulate()
-    table = mesh.getxytable(0, 1000, .011)
+    table = mesh.getxytable(0, 1000, 0.011)
     mesh.drawallshocks(screen, displaybounds, x_dim, y_dim)
-    np.savetxt("table.csv", table, delimiter = ",")
+    np.savetxt("table.csv", table, delimiter=",")
     print(mesh.calcarearatio())
     running = True
     while running:

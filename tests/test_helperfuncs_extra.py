@@ -2,10 +2,10 @@ import os
 import sys
 import math
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import helperfuncs as h
+import nozzlesim.helperfuncs as h
 
 
 def test_machangle():

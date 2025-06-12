@@ -2,13 +2,11 @@ import os
 import sys
 import math
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from Point import Point
-from Shock import Shock
-from Wall import Wall
-from shockmesh import Mesh
+from nozzlesim import Point, Shock, Wall
+from nozzlesim.mesh import Mesh
 
 
 def test_point_distance_and_equals():
