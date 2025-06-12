@@ -1,5 +1,7 @@
-import math as m
+"""Basic nozzle mesh utilities."""
+
 from copy import copy
+import math as m
 
 import numpy as np
 import pygame
@@ -13,6 +15,8 @@ epsilon = 10**-10
 
 
 class Mesh:
+    """Container for tracking walls and shocks during a nozzle simulation."""
+
     def __init__(
         self,
         gamma,
@@ -23,26 +27,40 @@ class Mesh:
         remainingangle,
         x=0,
     ):
+        """Create a new mesh.
+
+        Parameters
+        ----------
+        gamma : float
+            Specific heat ratio of the gas.
+        initialmach : float
+            Mach number at the inlet.
+        wallsegments : list[Wall]
+            Static wall segments already present in the domain.
+        initialshocks : list[Shock | Wall]
+            Shocks and walls that already exist at ``x``.
+        endexpansion : float
+            Location where the expansion section ends.
+        remainingangle : float
+            Angle remaining in the wall turn when the mesh is created.
+        x : float, optional
+            Starting ``x`` location.
+        """
+
         self.gamma = gamma
-        # currently constant, but wouldn't be hard to make a function of mach,
-        # and if I can get temperature as a function of mach I can do that too
         self.initialmach = initialmach
         self.wallsegments = wallsegments
+
+        # ``shocks`` keeps every shock or wall created during the simulation.
         self.shocks = copy(initialshocks)
-        # shocks contains all shocks that exist or have existed
-        # and all wall segments in expansion section and as they are created
+
+        # ``activeshocks`` only contains objects that still exist at ``x``.
         self.activeshocks = copy(initialshocks)
-        # activeshocks contains all shocks that still exist
-        # and all non-ended wall segments in expansion section and as they are created
-        # it checks to see, before tagging something as a pair, whether the intersection occurs in a location
-        # where that wall actually exists, so shocks should never interact with nonexistent walls
-        # and I can just dump the whole expansion section in there right at the start
-        # then make up the compression section as I go.
+
+        # Simulation state
         self.x = x
         self.endexpansion = endexpansion
         self.remainingangle = remainingangle
-        # x coordinate at which the expansion section ends. Controls whether shocks reflect off walls or cause them to
-        # bend inwards
 
     # Alright, here's what the main loop looks like
     # 1. set up initial set of shocks, wall segments (will need to add something to deal with adding new wall segments
@@ -59,10 +77,11 @@ class Mesh:
     # 7. go to step 3
 
     def simulate(self, stop=float("inf")):
+        """Propagate the mesh until no more events occur or ``stop`` is reached."""
+
         event = self.firstevent(self.activeshocks, self.x)
-        lastcheck = False
-        if self.remainingangle <= 0:
-            lastcheck = True
+        lastcheck = self.remainingangle <= 0
+
         while event is not None and self.x < stop:
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
@@ -71,76 +90,59 @@ class Mesh:
 
     @staticmethod
     def sortshocks(shocks, startx):
-        xpositions = [x.start.x for x in shocks]
-        slopes = [m.tan(m.radians(x.angle)) for x in shocks]
-        ypositions = []
-        for i in range(len(shocks)):
-            ypositions += [
-                (startx + epsilon - xpositions[i]) * slopes[i] + shocks[i].start.y
-            ]
-        shocks = list(zip(shocks, ypositions))
-        shocks.sort(key=lambda x: x[1], reverse=True)
-        return [x[0] for x in shocks]
+        """Return *shocks* sorted by their projected y value at ``startx``."""
+
+        def proj_y(seg):
+            slope = m.tan(m.radians(seg.angle))
+            return (startx + epsilon - seg.start.x) * slope + seg.start.y
+
+        return sorted(shocks, key=proj_y, reverse=True)
 
     def handled(self, shocks, object1, object2, x, y):
         if isinstance(object1, Shock) and isinstance(object2, Shock):
-            for seg in shocks:
-                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
-                    return True
+            cls = Shock
+        elif isinstance(object1, Wall) ^ isinstance(object2, Wall):
+            cls = Shock if x <= self.endexpansion else Wall
+        else:
             return False
-        if (
-            (isinstance(object1, Shock) and isinstance(object2, Wall))
-            or (isinstance(object1, Wall) and isinstance(object2, Shock))
-            and x <= self.endexpansion
-        ):
-            for seg in shocks:
-                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
-                    return True
-            return False
-        if (
-            (isinstance(object1, Shock) and isinstance(object2, Wall))
-            or (isinstance(object1, Wall) and isinstance(object2, Shock))
-            and x > self.endexpansion
-        ):
-            for seg in shocks:
-                if seg.start.x == x and seg.start.y == y and isinstance(seg, Wall):
-                    return True
-            return False
+
+        for seg in shocks:
+            if seg.start.x == x and seg.start.y == y and isinstance(seg, cls):
+                return True
+
+        return False
 
     def findpairs(self, shocks, startx):
         pairs = []
-        shocks = self.sortshocks(shocks, startx)
-        for i in range(len(shocks) - 1):
+        sorted_shocks = self.sortshocks(shocks, startx)
+
+        for top, bottom in zip(sorted_shocks, sorted_shocks[1:]):
             interpoint = Shock.findintersection(
-                shocks[i].start,
-                shocks[i + 1].start,
-                shocks[i].angle,
-                shocks[i + 1].angle,
+                top.start, bottom.start, top.angle, bottom.angle
             )
-            if interpoint is not None:
-                checkx1 = interpoint.x - epsilon
-                checkx2 = checkx1
-                if checkx1 < shocks[i].start.x:
-                    checkx1 = interpoint.x
-                if checkx2 < shocks[i + 1].start.x:
-                    checkx2 = interpoint.x
-                if (
-                    interpoint.x >= startx
-                    and shocks[i].exists(checkx1)
-                    and shocks[i + 1].exists(checkx2)
-                    and not self.handled(
-                        shocks, shocks[i], shocks[i + 1], interpoint.x, interpoint.y
-                    )
-                ):
-                    pairs.append((shocks[i], shocks[i + 1], interpoint))
+            if interpoint is None:
+                continue
+
+            checkx1 = interpoint.x - epsilon
+            checkx2 = interpoint.x - epsilon
+            if checkx1 < top.start.x:
+                checkx1 = interpoint.x
+            if checkx2 < bottom.start.x:
+                checkx2 = interpoint.x
+
+            if (
+                interpoint.x >= startx
+                and top.exists(checkx1)
+                and bottom.exists(checkx2)
+                and not self.handled(shocks, top, bottom, interpoint.x, interpoint.y)
+            ):
+                pairs.append((top, bottom, interpoint))
+
         return pairs
 
     def firstintersection(self, shocks, startx):
         pairs = self.findpairs(shocks, startx)
-        pairs.sort(key=lambda x: x[2].x)
-        if len(pairs) > 0:
-            return pairs[0]
-        return None
+        return min(pairs, key=lambda x: x[2].x) if pairs else None
 
     @staticmethod
     def removeended(shocks, endx):
@@ -157,35 +159,34 @@ class Mesh:
     def firstevent(self, shocks, startx):
         shocks = self.removeended(shocks, startx)
         intersection = self.firstintersection(shocks, startx)
-        if intersection is not None:
-            if not (
-                isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)
-            ):
-                intersectionx = intersection[2].x
-            else:
-                intersectionx = float("inf")
-        else:
-            intersectionx = float("inf")
+
+        intersectionx = float("inf")
+        if intersection and not (
+            isinstance(intersection[0], Wall) and isinstance(intersection[1], Wall)
+        ):
+            intersectionx = intersection[2].x
+
         firstwallend = float("inf")
-        wall = None
-        nextwall = None
-        for x in shocks:
-            if type(x) == Wall and x.end is not None:
+        wall = nextwall = None
+
+        for seg in shocks:
+            if isinstance(seg, Wall) and seg.end is not None:
                 shock = None
-                next = None
-                for y in self.shocks:
-                    if y.start.equals(x.end) and isinstance(y, Shock):
-                        shock = y
-                    if y.start.equals(x.end) and isinstance(y, Wall):
-                        next = y
-                if firstwallend > x.end.x >= startx:
-                    if shock is None:
-                        firstwallend = x.end.x
-                        wall = x
-                        nextwall = next
+                nxt = None
+                for candidate in self.shocks:
+                    if candidate.start.equals(seg.end):
+                        if isinstance(candidate, Shock):
+                            shock = candidate
+                        elif isinstance(candidate, Wall):
+                            nxt = candidate
+                if firstwallend > seg.end.x >= startx and shock is None:
+                    firstwallend = seg.end.x
+                    wall = seg
+                    nextwall = nxt
+
         if firstwallend <= intersectionx and nextwall is not None:
             return ["wall", [wall, nextwall, wall.end]]
-        if intersection is not None and intersectionx != float("inf"):
+        if intersection and intersectionx != float("inf"):
             return ["intersection", intersection]
         return None
 
@@ -211,40 +212,32 @@ class Mesh:
             object1.end = intersection
             object2.end = intersection
             self.x = x
-        if (
-            (isinstance(object1, Shock) and isinstance(object2, Wall))
-            or (isinstance(object1, Wall) and isinstance(object2, Shock))
-        ) and x < self.endexpansion:
-            if isinstance(object1, Shock):
-                shock = object1
+
+        elif (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
+            isinstance(object1, Wall) and isinstance(object2, Shock)
+        ):
+            if x < self.endexpansion:
+                shock = object1 if isinstance(object1, Shock) else object2
+                newshock = self.reflectshock(shock, x, y)
+                self.activeshocks.remove(shock)
+                shock.end = newshock.start
+                self.activeshocks.append(newshock)
+                self.shocks.append(newshock)
             else:
-                shock = object2
-            newshock = self.reflectshock(shock, x, y)
-            self.activeshocks.remove(shock)
-            shock.end = newshock.start
-            self.activeshocks.append(newshock)
-            self.shocks.append(newshock)
+                shock = object1 if isinstance(object1, Shock) else object2
+                wall = object2 if shock is object1 else object1
+                newwall = self.contract(wall, shock, x, y)
+                self.activeshocks.remove(wall)
+                self.activeshocks.remove(shock)
+                self.shocks.append(newwall)
+                self.activeshocks.append(newwall)
             self.x = x
-        if (
-            (isinstance(object1, Shock) and isinstance(object2, Wall))
-            or (isinstance(object1, Wall) and isinstance(object2, Shock))
-        ) and x > self.endexpansion:
-            if isinstance(object1, Shock):
-                shock = object1
-                wall = object2
-            else:
-                shock = object2
-                wall = object1
-            newwall = self.contract(wall, shock, x, y)
-            self.activeshocks.remove(wall)
-            self.activeshocks.remove(shock)
-            self.shocks.append(newwall)
-            self.activeshocks.append(newwall)
-            self.x = x
-        if isinstance(object1, Wall) and isinstance(object2, Wall):
+
+        else:
             raise TypeError("Both objects are walls. Your air got stuck.")
-            # Actually, this case depends on whether or not I'm using handleintersection to manage the creation of
-            # new shocks at corners in the expansion section or if I'm handling that separately.
+            # Actually, this case depends on whether or not I'm using handleintersection
+            # to manage the creation of new shocks at corners in the expansion section
+            # or if I'm handling that separately.
 
     def contract(self, wall, shock, x, y):
         point = Point(x, y)
@@ -260,27 +253,33 @@ class Mesh:
             self.activeshocks.append(newshock)
             self.shocks.append(newshock)
             self.x = event[1][2].x
-        if event[0] == "intersection":
+        elif event[0] == "intersection":
             self.handleintersection(
                 event[1][0], event[1][1], event[1][2].x, event[1][2].y
             )
 
     def getupstreamvalues(self, wallseg):
+        """Return ``[v, theta, gamma]`` upstream of ``wallseg``."""
+
         start = wallseg.start
         if start.x == 0:
             return [h.calcv(self.gamma, 1, self.initialmach), 0, self.gamma]
-        else:
-            for x in self.shocks:
-                if x.start == start and x != wallseg:
-                    return x.getdownstreamvals()
+
+        for x in self.shocks:
+            if x.start == start and x != wallseg:
+                return x.getdownstreamvals()
 
     def genwallshock(self, wall1, wall2):
+        """Create a shock generated by a turn from ``wall1`` to ``wall2``."""
+
         params = self.getupstreamvalues(wall1)
         turningangle = wall2.angle - wall1.angle
         return Shock(wall2.start, turningangle, params[2], params[0], params[1])
 
     @staticmethod
     def reflectshock(shock, x, y):
+        """Return a reflected shock at ``x, y`` from ``shock``."""
+
         bottomregion = Shock.calcregionparams(shock.theta, shock.v, shock.gamma, shock)
         bottomshock = Shock(
             Point(x, y),
@@ -292,33 +291,39 @@ class Mesh:
         return bottomshock
 
     def drawallshocks(self, screen, displaybounds, screenx, screeny, justwalls=False):
-        for x in self.shocks:
-            if type(x) == Wall or not justwalls:
-                drawshock(screen, displaybounds, x, screenx, screeny)
+        """Draw all shocks and walls to a ``pygame`` ``screen``."""
+
+        for seg in self.shocks:
+            if isinstance(seg, Wall) or not justwalls:
+                drawshock(screen, displaybounds, seg, screenx, screeny)
 
     def printallshocks(self):
         for x in self.shocks:
             print(x)
 
     def calcarearatio(self):
+        """Return the square of the vertical distance between top and bottom walls."""
+
         maxy = -float("inf")
         miny = float("inf")
-        for x in self.shocks:
-            if isinstance(x, Wall):
-                if x.start.y > maxy:
-                    maxy = x.start.y
-                if x.start.y < miny:
-                    miny = x.start.y
+        for seg in self.shocks:
+            if isinstance(seg, Wall):
+                if seg.start.y > maxy:
+                    maxy = seg.start.y
+                if seg.start.y < miny:
+                    miny = seg.start.y
         diff = maxy - miny
         return diff**2
 
     def getxytable(self, startx, numpoints, deltax):
+        """Return a list of ``(x, y)`` wall positions."""
+
         table = []
         for i in range(numpoints):
             maxy = -float("inf")
-            for x in self.shocks:
-                if type(x) == Wall:
-                    ypos = x.getyposition(startx + deltax * i)
+            for seg in self.shocks:
+                if isinstance(seg, Wall):
+                    ypos = seg.getyposition(startx + deltax * i)
                     if ypos > maxy:
                         maxy = ypos
             table.append((startx + deltax * i, maxy))
@@ -326,26 +331,29 @@ class Mesh:
 
 
 def convertpoint(displaybounds, pointx, pointy, screenx, screeny):
-    # note: in pygame coordinates, (0,0) is the top left. In nozzle coordinates, (minx, miny) is bottom left
+    """Convert physical ``(pointx, pointy)`` to screen coordinates."""
+
+    # In pygame (0, 0) is the top left. In nozzle coordinates (minx, miny) is
+    # the bottom left.  This helper converts between the two.
     deltax = pointx - displaybounds[0][0]
     xrange = displaybounds[1][0] - displaybounds[0][0]
     propdiffx = deltax / xrange
     newx = propdiffx * screenx
+
     deltay = pointy - displaybounds[0][1]
     yrange = displaybounds[1][1] - displaybounds[0][1]
     propdiffy = deltay / yrange
-    newy = (
-        screeny - propdiffy * screeny
-    )  # to adjust for difference in coordinate systems
+    newy = screeny - propdiffy * screeny
+
     return newx, newy
 
 
 def drawline(screen, displaybounds, start, angle, endx, screenx, screeny):
+    """Draw a line segment representing a shock or wall."""
+
     endx = min(displaybounds[1][0], endx)
     slope = m.tan(m.radians(angle))
     deltax = endx - start.x
-    if -32.70 < deltax < -32.68:
-        pass
     endy = start.y + deltax * slope
     end = None
     if endy > displaybounds[1][1]:
@@ -354,6 +362,7 @@ def drawline(screen, displaybounds, start, angle, endx, screenx, screeny):
         end = Shock.findintersection(Point(0, displaybounds[0][1]), start, 0, angle)
     if end is None:
         end = Point(endx, endy)
+
     screenstart = convertpoint(displaybounds, start.x, start.y, screenx, screeny)
     screenend = convertpoint(displaybounds, end.x, end.y, screenx, screeny)
     if 0 < screenstart[0] < screenx and 0 < screenstart[1] < screeny:
@@ -362,10 +371,9 @@ def drawline(screen, displaybounds, start, angle, endx, screenx, screeny):
 
 
 def drawshock(screen, displaybounds, shock, screenx, screeny):
-    if shock.end is None:
-        end = displaybounds[1][0] + 1  # go to the edge of the screen
-    else:
-        end = shock.end.x
+    """Draw ``shock`` to ``screen`` within ``displaybounds``."""
+
+    end = displaybounds[1][0] + 1 if shock.end is None else shock.end.x
     angle = shock.propangle()
     drawline(screen, displaybounds, shock.start, angle, end, screenx, screeny)
 
