@@ -8,3 +8,12 @@ compares them with values computed by hand using textbook formulas.  Each case
 computes the propagation angle for a single expansion (bend) and shows the
 difference between the analytical result and the value returned by the code.
 Run it with `python3 reference_cases.py`.
+
+## Running Tests
+
+Install development dependencies and run the test suite with coverage:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
