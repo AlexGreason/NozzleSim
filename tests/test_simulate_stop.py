@@ -5,7 +5,10 @@ class DummyMesh(mesh_module.Mesh):
     def __init__(self):
         # initialize with dummy values for parent
         super().__init__(1.4, 1.0, [], [], 0, 1)
-        self.events = ["e1", "e2", "e3"]
+        # minimal event objects with an ``x`` attribute in the expected place
+        from nozzlesim.point import Point
+
+        self.events = [["intersection", [None, None, Point(i, 0)]] for i in range(3)]
         self.counter = 0
 
     def firstevent(self, shocks, startx):

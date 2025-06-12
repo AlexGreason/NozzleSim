@@ -49,6 +49,32 @@ class Wall:
             segments.append(nextsegment)
         return segments, start.x + deltax * (numsegments + 1)
 
+    @classmethod
+    def create_symmetric_pair(
+        cls,
+        top_start: Point,
+        bottom_start: Point,
+        deltax: float,
+        totalangle: float,
+        numsegments: int,
+    ) -> tuple[list["Wall"], list["Wall"], float]:
+        """Return symmetric wall arcs for the top and bottom nozzle walls.
+
+        ``totalangle`` defines the turn of the top wall. The bottom wall will
+        mirror the top wall about the horizontal axis so the geometry is exactly
+        symmetric.
+        """
+
+        top_segments, endx = cls.createarc(top_start, deltax, totalangle, numsegments)
+        bottom_segments: list[Wall] = []
+        y_offset = top_start.y + bottom_start.y
+        for seg in top_segments:
+            start = Point(seg.start.x, -seg.start.y + y_offset)
+            end = None if seg.end is None else Point(seg.end.x, -seg.end.y + y_offset)
+            mirrored = cls(start, -seg.angle, end)
+            bottom_segments.append(mirrored)
+        return top_segments, bottom_segments, endx
+
     def exists(self, x: float) -> bool:
         """Return ``True`` if ``x`` lies between ``start`` and ``end`` (if defined)."""
 

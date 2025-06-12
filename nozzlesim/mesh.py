@@ -80,14 +80,17 @@ class Mesh:
         """Propagate the mesh until no more events occur or ``stop`` is reached."""
 
         event = self.firstevent(self.activeshocks, self.x)
-        lastcheck = self.remainingangle <= 0
 
         while event is not None and self.x < stop:
+            currentx = event[1][2].x
             self.handleevent(event)
-            event = self.firstevent(self.activeshocks, self.x)
-            lastcheck = self.remainingangle <= 0
-            if lastcheck:
+            nextevent = self.firstevent(self.activeshocks, self.x)
+            while nextevent is not None and abs(nextevent[1][2].x - currentx) < epsilon:
+                self.handleevent(nextevent)
+                nextevent = self.firstevent(self.activeshocks, self.x)
+            if self.remainingangle <= 0:
                 return
+            event = nextevent
 
     @staticmethod
     def sortshocks(shocks, startx):
