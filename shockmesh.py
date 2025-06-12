@@ -55,7 +55,6 @@ class Mesh:
         if self.remainingangle <= 0:
             lastcheck = True
         while event is not None and self.x < stop:
-            print(self.x)
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
             if lastcheck:
@@ -73,22 +72,21 @@ class Mesh:
         return [x[0] for x in shocks]
 
     def handled(self, shocks, object1, object2, x, y):
-        intersection = Point(x, y)
         if isinstance(object1, Shock) and isinstance(object2, Shock):
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Shock):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
         if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
                     isinstance(object1, Wall) and isinstance(object2, Shock)) and x <= self.endexpansion:
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Shock):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
         if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
                     isinstance(object1, Wall) and isinstance(object2, Shock)) and x > self.endexpansion:
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Wall):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Wall):
                     return True
             return False
 
@@ -96,13 +94,19 @@ class Mesh:
         pairs = []
         shocks = self.sortshocks(shocks, startx)
         for i in range(len(shocks) - 1):
-            interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start, shocks[i].angle,
-                                                shocks[i + 1].angle)
+            interpoint = Shock.findintersection(shocks[i].start, shocks[i + 1].start,
+                                                shocks[i].angle, shocks[i + 1].angle)
             if interpoint is not None:
-                if interpoint.x >= startx and shocks[i].exists(interpoint.x - epsilon) and \
-                        shocks[i + 1].exists(interpoint.x - epsilon) and not self.handled(shocks, shocks[i],
-                                                                                          shocks[i + 1], interpoint.x,
-                                                                                          interpoint.y):
+                checkx1 = interpoint.x - epsilon
+                checkx2 = checkx1
+                if checkx1 < shocks[i].start.x:
+                    checkx1 = interpoint.x
+                if checkx2 < shocks[i + 1].start.x:
+                    checkx2 = interpoint.x
+                if interpoint.x >= startx and shocks[i].exists(checkx1) and \
+                        shocks[i + 1].exists(checkx2) and not self.handled(shocks, shocks[i],
+                                                                         shocks[i + 1], interpoint.x,
+                                                                         interpoint.y):
                     pairs.append((shocks[i], shocks[i + 1], interpoint))
         return pairs
 

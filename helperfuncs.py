@@ -1,4 +1,5 @@
 import math as m
+from functools import lru_cache
 
 
 sign = lambda x: m.copysign(1, x)
@@ -6,6 +7,7 @@ sign = lambda x: m.copysign(1, x)
 def machangle(mach):
     return m.asin(1/mach)
 
+@lru_cache(maxsize=None)
 def calcv(gamma, mach1, mach2):
     k = m.sqrt((gamma + 1)/(gamma - 1))  # dunno what actual significance of this is
     alpha1 = machangle(mach1)  # first mach angle
@@ -30,6 +32,7 @@ def binarysearch(lowerbound, upperbound, target, steps, func):
     return val
 
 #  calcmach has been verified against the table, at least for gamma of 1.4
+@lru_cache(maxsize=None)
 def calcmach(gamma, mach1, angle, steps=30):
     if angle == 0:
         return 1
@@ -37,6 +40,7 @@ def calcmach(gamma, mach1, angle, steps=30):
     return binarysearch(1, 100, angle, steps, f)
 
 
+@lru_cache(maxsize=None)
 def calcshockemitangle(gamma, angle, mach1=-1.0, v1=-1.0):
     if mach1 == -1:
         mach1 = calcmach(gamma, 1, v1)
@@ -47,11 +51,13 @@ def calcshockemitangle(gamma, angle, mach1=-1.0, v1=-1.0):
     return abar + .5 * abs(angle)
 
 
+@lru_cache(maxsize=None)
 def calcvmax(gamma):
     k = m.sqrt((gamma + 1) / (gamma - 1))
     return m.degrees(m.pi/2 * (k - 1))
 
 
+@lru_cache(maxsize=None)
 def calcshockpropangle(gamma, v1, theta, turningangle):
     mach1 = calcmach(gamma, 1, v1)
     mach2 = calcmach(gamma, 1, v1 + abs(turningangle))
@@ -61,6 +67,7 @@ def calcshockpropangle(gamma, v1, theta, turningangle):
     return abar + theta - turningangle/2
 
 
+@lru_cache(maxsize=None)
 def alphadiff(gamma, v1, v2):
     mach1 = calcmach(gamma, 1, v1)
     mach2 = calcmach(gamma, 1, v2)
@@ -69,18 +76,22 @@ def alphadiff(gamma, v1, v2):
     return alpha1 - alpha2
 
 
+@lru_cache(maxsize=None)
 def calcarearatio(gamma, mach):
     return 1/mach * ((2 + (gamma - 1) * mach ** 2)/(gamma + 1)) ** (.5 * ((gamma + 1)/(gamma - 1)))
 
+@lru_cache(maxsize=None)
 def calcmachfromarearatio(gamma, ratio, steps=20):
     f = lambda mach: calcarearatio(gamma, mach)
     return binarysearch(1.1, 1000, ratio, steps, f)
 
+@lru_cache(maxsize=None)
 def shockangle(gamma, v, theta, turningangle):
     mach1 = calcmach(gamma, 1, v)
     alpha1 = m.degrees(machangle(mach1))
     return -sign(turningangle) * alpha1 + theta
 
+@lru_cache(maxsize=None)
 def shockprop(gamma, v, theta, turningangle):
     angle1 = shockangle(gamma, v, theta, turningangle)
     angle2 = shockangle(gamma, v + abs(turningangle), theta + turningangle, turningangle)
