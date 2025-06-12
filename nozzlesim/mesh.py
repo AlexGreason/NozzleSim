@@ -376,29 +376,3 @@ def drawshock(screen, displaybounds, shock, screenx, screeny):
     end = displaybounds[1][0] + 1 if shock.end is None else shock.end.x
     angle = shock.propangle()
     drawline(screen, displaybounds, shock.start, angle, end, screenx, screeny)
-
-
-if __name__ == "__main__":
-    pygame.init()
-    x_dim, y_dim = 800, 800
-    screen = pygame.display.set_mode((x_dim, y_dim))
-    screen.fill((255, 255, 255))
-    displaybounds = [(0, -10), (20, 10)]
-    n = 45
-    theta = 34.45
-    topwalls, endx = Wall.createarc(Point(0, 0.5), 0.007, theta, n)
-    bottomwalls, endx = Wall.createarc(Point(0, -0.5), 0.007, -theta, n)
-    print(endx)
-    mesh = Mesh(1.25, 1, [], topwalls + bottomwalls, endx, 1)
-    mesh.simulate()
-    table = mesh.getxytable(0, 1000, 0.011)
-    mesh.drawallshocks(screen, displaybounds, x_dim, y_dim)
-    np.savetxt("table.csv", table, delimiter=",")
-    print(mesh.calcarearatio())
-    running = True
-    while running:
-        events = pygame.event.get()
-        for e in events:
-            if e.type == pygame.QUIT:
-                running = False
-                pygame.display.quit()
