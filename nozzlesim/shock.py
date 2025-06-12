@@ -117,4 +117,12 @@ class Shock:
         return [topshock, bottomshock]
 
     def __str__(self) -> str:  # pragma: no cover - simple display
-        return f"\nStart: {self.start}\nAngle: {self.propangle()}"
+        parts = [
+            "Shock(",
+            f"Start: {self.start}",
+            f"Angle: {self.propangle()}",
+            f"Turning: {self.turningangle}",
+        ]
+        if self.end is not None:
+            parts.append(f"End: {self.end}")
+        return ", ".join(parts) + ")"
