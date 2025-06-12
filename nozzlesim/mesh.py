@@ -301,6 +301,23 @@ class Mesh:
         for x in self.shocks:
             print(x)
 
+    def __str__(self) -> str:  # pragma: no cover - simple display
+        wall_count = sum(isinstance(s, Wall) for s in self.shocks)
+        shock_count = sum(isinstance(s, Shock) for s in self.shocks)
+        lines = [
+            f"Mesh(x={self.x}, gamma={self.gamma}, initialmach={self.initialmach})",
+            f"Segments: {len(self.shocks)} (Walls: {wall_count}, Shocks: {shock_count})",
+            f"Active segments: {len(self.activeshocks)}",
+        ]
+        if self.activeshocks:
+            lines.append("Sample active segments:")
+            show = self.activeshocks[:3]
+            for seg in show:
+                lines.append(f"  {seg}")
+            if len(self.activeshocks) > len(show):
+                lines.append(f"  ... ({len(self.activeshocks) - len(show)} more)")
+        return "\n".join(lines)
+
     def calcarearatio(self):
         """Return the square of the vertical distance between top and bottom walls."""
 

@@ -65,3 +65,13 @@ class Wall:
             slope = math.tan(math.radians(self.angle))
             return (xposition - self.start.x) * slope + self.start.y
         return -float("inf")
+
+    def __str__(self) -> str:  # pragma: no cover - simple display
+        parts = [
+            "Wall(",
+            f"Start: {self.start}",
+            f"Angle: {self.angle}",
+        ]
+        if self.end is not None:
+            parts.append(f"End: {self.end}")
+        return ", ".join(parts) + ")"

@@ -56,3 +56,11 @@ def test_wall_methods_and_mesh_helpers():
     wall.end = Point(0.25, 0.25)
     remaining = Mesh.removeended([wall, other], 0.5)
     assert remaining == [other]
+
+
+def test_wall_and_mesh_str():
+    wall = Wall(Point(0, 0), 0)
+    assert "Wall" in str(wall) and "Start" in str(wall)
+    mesh = Mesh(1.4, 1.0, [wall], [wall], 1, 0)
+    text = str(mesh)
+    assert "Mesh(" in text and "Segments:" in text
