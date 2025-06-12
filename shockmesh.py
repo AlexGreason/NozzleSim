@@ -55,7 +55,6 @@ class Mesh:
         if self.remainingangle <= 0:
             lastcheck = True
         while event is not None and self.x < stop:
-            print(self.x)
             self.handleevent(event)
             event = self.firstevent(self.activeshocks, self.x)
             if lastcheck:
@@ -73,22 +72,21 @@ class Mesh:
         return [x[0] for x in shocks]
 
     def handled(self, shocks, object1, object2, x, y):
-        intersection = Point(x, y)
         if isinstance(object1, Shock) and isinstance(object2, Shock):
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Shock):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
         if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
                     isinstance(object1, Wall) and isinstance(object2, Shock)) and x <= self.endexpansion:
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Shock):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Shock):
                     return True
             return False
         if (isinstance(object1, Shock) and isinstance(object2, Wall)) or (
                     isinstance(object1, Wall) and isinstance(object2, Shock)) and x > self.endexpansion:
-            for x in shocks:
-                if x.start.equals(intersection) and isinstance(x, Wall):
+            for seg in shocks:
+                if seg.start.x == x and seg.start.y == y and isinstance(seg, Wall):
                     return True
             return False
 
