@@ -2,13 +2,11 @@ import os
 import sys
 import math
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from Point import Point
-from Shock import Shock
-from Wall import Wall
-from shockmesh import Mesh, convertpoint
+from nozzlesim import Point, Shock, Wall
+from nozzlesim.mesh import Mesh, convertpoint
 
 
 def test_mesh_upstream_and_genwallshock():
@@ -33,6 +31,7 @@ def test_mesh_reflect_and_getxytable_convert():
     x, y = convertpoint([(0, 0), (1, 1)], 0.5, 0.5, 100, 100)
     assert math.isclose(x, 50)
     assert math.isclose(y, 50)
+
 
 def test_findpairs_and_firstevent():
     s1 = Shock(Point(0, 0), 5, 1.4, 0, 0)
@@ -61,4 +60,3 @@ def test_handleintersection_and_area():
     w2 = Wall(Point(0, 1), 0)
     mesh = Mesh(1.4, 1, [], [w1, w2], 1, 0)
     assert math.isclose(mesh.calcarearatio(), 1.0)
-

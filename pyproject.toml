@@ -2,9 +2,6 @@
 addopts = "--cov=. --cov-report=term-missing"
 testpaths = ["tests"]
 
-[tool.ruff]
-line-length = 88
 
-[tool.ruff.lint]
-select = ["E", "F"]
-ignore = ["E501", "E721"]
+[tool.black]
+line-length = 88

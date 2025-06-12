@@ -1,19 +1,17 @@
 import os
 import sys
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import math
 import pytest
 
-import helperfuncs as h
-from Shock import Shock
-from Point import Point
-from Wall import Wall
+import nozzlesim.helperfuncs as h
+from nozzlesim import Shock, Point, Wall
 
 try:
-    from shockmesh import Mesh
+    from nozzlesim.mesh import Mesh
 except Exception:  # missing optional deps
     Mesh = None
 

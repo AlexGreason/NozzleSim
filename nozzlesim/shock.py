@@ -1,7 +1,7 @@
 import math as m
 
-import helperfuncs as h
-from Point import Point
+from . import helperfuncs as h
+from .point import Point
 
 
 class Shock:
@@ -51,8 +51,11 @@ class Shock:
         return [self.v, self.theta, self.gamma]
 
     def getdownstreamvals(self):
-        return [self.v + abs(self.turningangle), self.theta + self.turningangle, self.gamma]
-
+        return [
+            self.v + abs(self.turningangle),
+            self.theta + self.turningangle,
+            self.gamma,
+        ]
 
     def exists(self, x):
         beforestart = x < self.start.x
@@ -76,11 +79,23 @@ class Shock:
         # after interacting with each other
         # the two shocks should have the same v, theta, and gamma because they share an upstream region, if
         # they are the next two shocks to intersect
-        topregion = shock1.calcregionparams(shock1.theta, shock1.v, shock1.gamma, shock1)
-        bottomregion = shock2.calcregionparams(shock2.theta, shock2.v, shock2.gamma, shock2)
+        topregion = shock1.calcregionparams(
+            shock1.theta, shock1.v, shock1.gamma, shock1
+        )
+        bottomregion = shock2.calcregionparams(
+            shock2.theta, shock2.v, shock2.gamma, shock2
+        )
         startpoint = Point(x, y)
-        topshock = Shock(startpoint, shock2.turningangle, topregion[2], topregion[1], topregion[0])
-        bottomshock = Shock(startpoint, shock1.turningangle, bottomregion[2], bottomregion[1], bottomregion[0])
+        topshock = Shock(
+            startpoint, shock2.turningangle, topregion[2], topregion[1], topregion[0]
+        )
+        bottomshock = Shock(
+            startpoint,
+            shock1.turningangle,
+            bottomregion[2],
+            bottomregion[1],
+            bottomregion[0],
+        )
         return [topshock, bottomshock]
 
     def __str__(self):

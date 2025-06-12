@@ -1,7 +1,7 @@
 import math as m
 
-from Point import Point
-from Shock import Shock
+from .point import Point
+from .shock import Shock
 
 
 class Wall:
@@ -24,10 +24,15 @@ class Wall:
 
     @classmethod
     def createarc(cls, start, deltax, totalangle, numsegments):
-        deltaangle = totalangle/numsegments
+        deltaangle = totalangle / numsegments
         segments = [cls(start, 0)]
         for i in range(numsegments):
-            nextpoint = Shock.findintersection(segments[i].start, Point(start.x + deltax * (i+1), start.y), deltaangle * i, 89.9)
+            nextpoint = Shock.findintersection(
+                segments[i].start,
+                Point(start.x + deltax * (i + 1), start.y),
+                deltaangle * i,
+                89.9,
+            )
             segments[i].end = nextpoint
             nextsegment = cls(nextpoint, deltaangle * (i + 1))
             segments.append(nextsegment)
@@ -43,8 +48,7 @@ class Wall:
         return not beforestart and not afterend
 
     def getyposition(self, xposition):
-        if(self.exists(xposition)):
+        if self.exists(xposition):
             slope = m.tan(m.radians(self.angle))
             return (xposition - self.start.x) * slope + self.start.y
         return -float("inf")
-

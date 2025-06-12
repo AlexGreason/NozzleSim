@@ -3,11 +3,8 @@ Uses the method of characteristics to simulate supersonic flow in an axisymmetri
 
 ## Reference case verification
 
-The script `reference_cases.py` prints a few simple characteristic angles and
-compares them with values computed by hand using textbook formulas.  Each case
-computes the propagation angle for a single expansion (bend) and shows the
-difference between the analytical result and the value returned by the code.
-Run it with `python3 reference_cases.py`.
+Reference cases validating characteristic propagation angles are included in the
+test suite.  Run ``pytest`` to execute them.
 
 ## Running Tests
 
@@ -17,3 +14,8 @@ Install development dependencies and run the test suite with coverage:
 pip install -r requirements-dev.txt
 pytest
 ```
+
+## Code style
+
+This project uses [Black](https://black.readthedocs.io/) for formatting. Run
+``black .`` before committing changes.
