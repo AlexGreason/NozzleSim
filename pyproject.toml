@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-addopts = "--cov=helperfuncs --cov-report=term-missing"
+addopts = "--cov=. --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.ruff]
